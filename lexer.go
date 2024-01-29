@@ -48,7 +48,8 @@ func createTextNode(text string, props ...string) *Node {
 		"code":      false,
 	}
 	for _, prop := range props {
-		switch strings.TrimSpace(prop) {
+		prop = strings.TrimSpace(prop)
+		switch prop {
 		case "default", "success", "info", "warning", "error":
 			opts["type"] = prop
 		case "s", "strong":
