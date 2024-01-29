@@ -7,14 +7,15 @@ import (
 )
 
 var (
-	sectionRegexp     = regexp.MustCompile(`^\\section\{((?:[^\\{}]|\\[{}])*)}(?:\{(.*)})?.*`)
-	paragraphRegexp   = regexp.MustCompile(`^\\begin\{paragraph}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]*?)\\end\{paragraph}.*`)
-	blockquoteRegexp  = regexp.MustCompile(`^\\begin\{blockquote}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]*?)\\end\{blockquote}.*`)
-	codeBlockRegexp   = regexp.MustCompile(`^\\begin\{code}\{([^{}]*)}\n([\s\S]*?)\\end\{code}.*`)
-	mathBlockRegexp   = regexp.MustCompile(`^\\begin\{math}\n([\s\S]*?)\\end\{math}.*`)
-	htmlBlockRegexp   = regexp.MustCompile(`^\\begin\{html}\n([\s\S]*?)\\end\{html}.*`)
-	tableBlockRegexp  = regexp.MustCompile(`^\\begin\{table}\n([\s\S]*?)\\end\{table}.*`)
-	sampleBlockRegexp = regexp.MustCompile(`^\\begin\{sample}\{([1-9]\d*)}\s+\\sample\{input}\n([\s\S]*?)\\sample\{output}\n([\s\S]*?)\\end\{sample}.*`)
+	sectionRegexp      = regexp.MustCompile(`^\\section\{((?:[^\\{}]|\\[{}])*)}(?:\{(.*)})?.*`)
+	paragraphRegexp    = regexp.MustCompile(`^\\begin\{paragraph}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]*?)\\end\{paragraph}.*`)
+	blockquoteRegexp   = regexp.MustCompile(`^\\begin\{blockquote}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]*?)\\end\{blockquote}.*`)
+	codeBlockRegexp    = regexp.MustCompile(`^\\begin\{code}\{([^{}]*)}\n([\s\S]*?)\\end\{code}.*`)
+	mathBlockRegexp    = regexp.MustCompile(`^\\begin\{math}\n([\s\S]*?)\\end\{math}.*`)
+	htmlBlockRegexp    = regexp.MustCompile(`^\\begin\{html}\n([\s\S]*?)\\end\{html}.*`)
+	tableBlockRegexp   = regexp.MustCompile(`^\\begin\{table}\n([\s\S]*?)\\end\{table}.*`)
+	sampleBlockRegexp  = regexp.MustCompile(`^\\begin\{sample}\{([1-9]\d*)}\s+\\sample\{input}\n([\s\S]*?)\\sample\{output}\n([\s\S]*?)\\end\{sample}.*`)
+	mixCodeBlockRegexp = regexp.MustCompile(`^\\begin\{mixcode}\n([\s\S]*?)\\end\{mixcode}.*`)
 )
 
 var inlineRegexp = regexp.MustCompile(`\\(link|text|newline|space|math|html)(?:\{([^{}]*)}\{([^{}]*)}|\{([^{}]*)}|\[([^\[\]]*)])?`)
@@ -244,6 +245,20 @@ func processSampleBlock(node *Node, text string) (string, bool) {
 	return text, false
 }
 
+func processMixCodeBlock(node *Node, text string) (string, bool) {
+	if indices := mixCodeBlockRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 4 {
+		raw := strings.TrimSpace(text[indices[2]:indices[3]])
+		data := parseMixCode(raw)
+		if data != nil {
+			node.Children = append(node.Children, NewNode("MixCodeBlock", data, nil))
+		} else {
+			node.Children = append(node.Children, createTextNode(text[indices[0]:indices[1]]))
+		}
+		return text[indices[1]:], true
+	}
+	return text, false
+}
+
 func processUnknown(text string) string {
 	lines := strings.SplitN(text, "\n", 2)
 	if len(lines) == 2 {
@@ -279,6 +294,9 @@ func Lex(text string) *Node {
 			continue
 		}
 		if text, ok = processSampleBlock(node, text); ok {
+			continue
+		}
+		if text, ok = processMixCodeBlock(node, text); ok {
 			continue
 		}
 		text = processUnknown(text)
