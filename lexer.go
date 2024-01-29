@@ -10,7 +10,7 @@ var (
 	sectionRegexp     = regexp.MustCompile(`^\\section\{((?:[^\\{}]|\\[{}])*)}(?:\{(.*)})?.*`)
 	paragraphRegexp   = regexp.MustCompile(`^\\begin\{paragraph}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]*?)\\end\{paragraph}.*`)
 	blockquoteRegexp  = regexp.MustCompile(`^\\begin\{blockquote}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]*?)\\end\{blockquote}.*`)
-	codeBlockRegexp   = regexp.MustCompile(`^\\begin\{code}\{(\S*)}\n([\s\S]*?)\\end\{code}.*`)
+	codeBlockRegexp   = regexp.MustCompile(`^\\begin\{code}\{([^{}]*)}\n([\s\S]*?)\\end\{code}.*`)
 	mathBlockRegexp   = regexp.MustCompile(`^\\begin\{math}\n([\s\S]*?)\\end\{math}.*`)
 	htmlBlockRegexp   = regexp.MustCompile(`^\\begin\{html}\n([\s\S]*?)\\end\{html}.*`)
 	tableBlockRegexp  = regexp.MustCompile(`^\\begin\{table}\n([\s\S]*?)\\end\{table}.*`)
@@ -188,7 +188,7 @@ func processBlockquote(node *Node, text string) (string, bool) {
 
 func processCodeBlock(node *Node, text string) (string, bool) {
 	if indices := codeBlockRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 6 {
-		language := text[indices[2]:indices[3]]
+		language := strings.TrimSpace(text[indices[2]:indices[3]])
 		if language == "" {
 			language = "text"
 		}
