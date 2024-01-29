@@ -8,13 +8,13 @@ import (
 
 var (
 	sectionRegexp     = regexp.MustCompile(`^\\section\{((?:[^\\{}]|\\[{}])*)}(?:\{(.*)})?.*`)
-	paragraphRegexp   = regexp.MustCompile(`^\\begin\{paragraph}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]+?)\n\\end\{paragraph}.*`)
-	blockquoteRegexp  = regexp.MustCompile(`^\\begin\{blockquote}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]+?)\n\\end\{blockquote}.*`)
-	codeBlockRegexp   = regexp.MustCompile(`^\\begin\{code}\{(\S+|)}\n([\s\S]+?)\n\\end\{code}.*`)
-	mathBlockRegexp   = regexp.MustCompile(`^\\begin\{math}\n([\s\S]+?)\n\\end\{math}.*`)
-	htmlBlockRegexp   = regexp.MustCompile(`^\\begin\{html}\n([\s\S]+?)\n\\end\{html}.*`)
-	tableBlockRegexp  = regexp.MustCompile(`^\\begin\{table}\n([\s\S]+?)\n\\end\{table}.*`)
-	sampleBlockRegexp = regexp.MustCompile(`^\\begin\{sample}\{(\d+)}\s+\\sample\{input}([\s\S]+?)\\sample\{output}([\s\S]+?)\\end\{sample}.*`)
+	paragraphRegexp   = regexp.MustCompile(`^\\begin\{paragraph}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]*?)\\end\{paragraph}.*`)
+	blockquoteRegexp  = regexp.MustCompile(`^\\begin\{blockquote}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]*?)\\end\{blockquote}.*`)
+	codeBlockRegexp   = regexp.MustCompile(`^\\begin\{code}\{(\S*)}\n([\s\S]*?)\\end\{code}.*`)
+	mathBlockRegexp   = regexp.MustCompile(`^\\begin\{math}\n([\s\S]*?)\\end\{math}.*`)
+	htmlBlockRegexp   = regexp.MustCompile(`^\\begin\{html}\n([\s\S]*?)\\end\{html}.*`)
+	tableBlockRegexp  = regexp.MustCompile(`^\\begin\{table}\n([\s\S]*?)\\end\{table}.*`)
+	sampleBlockRegexp = regexp.MustCompile(`^\\begin\{sample}\{([1-9]\d*)}\s+\\sample\{input}\n([\s\S]*?)\\sample\{output}\n([\s\S]*?)\\end\{sample}.*`)
 )
 
 var inlineRegexp = regexp.MustCompile(`\\(link|text|newline|space|math|html)(?:\{([^{}]*)}\{([^{}]*)}|\{([^{}]*)}|\[([^\[\]]*)])?`)
@@ -81,10 +81,9 @@ func processInline(node *Node) {
 	}
 	var indices []int
 	for text != "" {
-		text = strings.TrimSpace(text)
 		if indices = inlineRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 12 {
 			if indices[0] != 0 {
-				raw := strings.TrimSpace(text[:indices[0]])
+				raw := text[:indices[0]]
 				if raw != "" {
 					node.Children = append(node.Children, createTextNode(raw))
 				}
@@ -165,7 +164,7 @@ func processParagraph(node *Node, text string) (string, bool) {
 		if indices[2] != -1 && indices[3] != -1 {
 			style = strings.TrimSpace(text[indices[2]:indices[3]])
 		}
-		paragraph := NewNode("Paragraph", strings.TrimSpace(text[indices[4]:indices[5]]), style)
+		paragraph := NewNode("Paragraph", text[indices[4]:indices[5]], style)
 		processInline(paragraph)
 		node.Children = append(node.Children, paragraph)
 		return text[indices[1]:], true
@@ -179,7 +178,7 @@ func processBlockquote(node *Node, text string) (string, bool) {
 		if indices[2] != -1 && indices[3] != -1 {
 			style = strings.TrimSpace(text[indices[2]:indices[3]])
 		}
-		blockquote := NewNode("Blockquote", strings.TrimSpace(text[indices[4]:indices[5]]), style)
+		blockquote := NewNode("Blockquote", text[indices[4]:indices[5]], style)
 		processInline(blockquote)
 		node.Children = append(node.Children, blockquote)
 		return text[indices[1]:], true
