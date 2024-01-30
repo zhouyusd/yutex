@@ -2,29 +2,26 @@ name: Auto Release
 
 on:
   push:
+    # Sequence of patterns matched against refs/tags
     tags:
-      - 'v*' # 以 'v' 开头的 tag 会触发工作流程
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
 jobs:
-  release:
+  build:
+    name: Create Release
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
       - name: Create Release
         id: create_release
-        run: |
-          TAG=$(git describe --tags --abbrev=0)
-          echo "Creating release $TAG"
-          # 使用 GitHub API 创建 release
-          RESPONSE=$(curl --request POST \
-             --url https://api.github.com/repos/$GITHUB_REPOSITORY/releases \
-             --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-             --data '{
-               "tag_name": "'"$TAG"'",
-               "name": "'"$TAG"'",
-               "draft": false,
-               "prerelease": false
-           }')
-          echo "Release response: $RESPONSE"
-
+        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          body: |
+            Release ${{ github.ref }}
+          draft: false
+          prerelease: false
