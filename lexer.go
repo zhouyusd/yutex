@@ -7,15 +7,15 @@ import (
 )
 
 var (
-	sectionRegexp      = regexp.MustCompile(`^\\section\{((?:[^\\{}]|\\[{}])*)}(?:\{(.*)})?.*`)
-	paragraphRegexp    = regexp.MustCompile(`^\\begin\{paragraph}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]*?)\\end\{paragraph}.*`)
-	blockquoteRegexp   = regexp.MustCompile(`^\\begin\{blockquote}(?:\{((?:[^\\{}]|\\[{}])*)})?\n([\s\S]*?)\\end\{blockquote}.*`)
-	codeBlockRegexp    = regexp.MustCompile(`^\\begin\{code}\{([^{}]*)}\n([\s\S]*?)\\end\{code}.*`)
-	mathBlockRegexp    = regexp.MustCompile(`^\\begin\{math}\n([\s\S]*?)\\end\{math}.*`)
-	htmlBlockRegexp    = regexp.MustCompile(`^\\begin\{html}\n([\s\S]*?)\\end\{html}.*`)
-	tableBlockRegexp   = regexp.MustCompile(`^\\begin\{table}\n([\s\S]*?)\\end\{table}.*`)
-	sampleBlockRegexp  = regexp.MustCompile(`^\\begin\{sample}\{([1-9]\d*)}\s+\\sample\{input}\n([\s\S]*?)\\sample\{output}\n([\s\S]*?)\\end\{sample}.*`)
-	mixCodeBlockRegexp = regexp.MustCompile(`^\\begin\{mixcode}\n([\s\S]*?)\\end\{mixcode}.*`)
+	sectionRegexp    = regexp.MustCompile(`^\\section\{([^{}]*)}.*`)
+	paragraphRegexp  = regexp.MustCompile(`^\\begin\{paragraph}\{([^{}]*)}.*([\s\S]*?)\n\\end\{paragraph}.*`)
+	blockquoteRegexp = regexp.MustCompile(`^\\begin\{blockquote}.*([\s\S]*?)\n\\end\{blockquote}.*`)
+	codeBlockRegexp  = regexp.MustCompile(`^\\begin\{code}\{([^{}]*)}.*([\s\S]*?)\n\\end\{code}.*`)
+	mathBlockRegexp  = regexp.MustCompile(`^\\begin\{math}.*([\s\S]*?)\n\\end\{math}.*`)
+	htmlBlockRegexp  = regexp.MustCompile(`^\\begin\{html}.*([\s\S]*?)\n\\end\{html}.*`)
+	tableRegexp      = regexp.MustCompile(`^\\begin\{table}.*([\s\S]*?)\n\\end\{table}.*`)
+	sampleRegexp     = regexp.MustCompile(`^\\begin\{sample}\{([1-9]\d*)}.*([\s\S]*?)\n\\sample\{input}.*([\s\S]*?)\n\\sample\{output}.*([\s\S]*?)\n\\end\{sample}.*`)
+	mixCodeRegexp    = regexp.MustCompile(`^\\begin\{mixcode}.*([\s\S]*?)\n\\end\{mixcode}.*`)
 )
 
 var inlineRegexp = regexp.MustCompile(`\\(link|text|newline|space|math|html)(?:\{([^{}]*)}\{([^{}]*)}|\{([^{}]*)}|\[([^\[\]]*)])?`)
@@ -39,7 +39,22 @@ func parseInline(text string, indices []int, v1, v2 *string) *Node {
 	return nil
 }
 
+func filterBlank(arr []string) []string {
+	var res []string
+	for _, item := range arr {
+		item = strings.TrimSpace(item)
+		if item != "" {
+			res = append(res, item)
+		}
+	}
+	return res
+}
+
 func createTextNode(text string, props ...string) *Node {
+	props = filterBlank(props)
+	if len(props) == 0 {
+		return NewNode("Text", text, nil)
+	}
 	opts := map[string]interface{}{
 		"type":      "default",
 		"strong":    false,
@@ -148,41 +163,43 @@ func processInline(node *Node) {
 }
 
 func processSection(node *Node, text string) (string, bool) {
-	if indices := sectionRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 6 {
-		var style interface{} = nil
-		if indices[4] != -1 && indices[5] != -1 {
-			style = strings.TrimSpace(text[indices[4]:indices[5]])
+	if indices := sectionRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 4 {
+		title := strings.TrimSpace(text[indices[2]:indices[3]])
+		if title != "" {
+			node.Children = append(node.Children, NewNode("Section", title, nil))
+			return text[indices[1]:], true
 		}
-		node.Children = append(node.Children, NewNode("Section", strings.TrimSpace(text[indices[2]:indices[3]]), style))
-		return text[indices[1]:], true
 	}
 	return text, false
 }
 
 func processParagraph(node *Node, text string) (string, bool) {
 	if indices := paragraphRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 6 {
-		var style interface{} = nil
-		if indices[2] != -1 && indices[3] != -1 {
-			style = strings.TrimSpace(text[indices[2]:indices[3]])
+		var style interface{}
+		style = strings.TrimSpace(text[indices[2]:indices[3]])
+		if style == "" {
+			style = nil
 		}
-		paragraph := NewNode("Paragraph", text[indices[4]:indices[5]], style)
-		processInline(paragraph)
-		node.Children = append(node.Children, paragraph)
-		return text[indices[1]:], true
+		raw := strings.TrimSpace(text[indices[4]:indices[5]])
+		if raw != "" {
+			paragraph := NewNode("Paragraph", raw, style)
+			processInline(paragraph)
+			node.Children = append(node.Children, paragraph)
+			return text[indices[1]:], true
+		}
 	}
 	return text, false
 }
 
 func processBlockquote(node *Node, text string) (string, bool) {
-	if indices := blockquoteRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 6 {
-		var style interface{} = nil
-		if indices[2] != -1 && indices[3] != -1 {
-			style = strings.TrimSpace(text[indices[2]:indices[3]])
+	if indices := blockquoteRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 4 {
+		raw := strings.TrimSpace(text[indices[2]:indices[3]])
+		if raw != "" {
+			blockquote := NewNode("Blockquote", strings.TrimSpace(text[indices[2]:indices[3]]), nil)
+			processInline(blockquote)
+			node.Children = append(node.Children, blockquote)
+			return text[indices[1]:], true
 		}
-		blockquote := NewNode("Blockquote", text[indices[4]:indices[5]], style)
-		processInline(blockquote)
-		node.Children = append(node.Children, blockquote)
-		return text[indices[1]:], true
 	}
 	return text, false
 }
@@ -218,43 +235,55 @@ func processHtmlBlock(node *Node, text string) (string, bool) {
 	return text, false
 }
 
-func processTableBlock(node *Node, text string) (string, bool) {
-	if indices := tableBlockRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 4 {
+func processTable(node *Node, text string) (string, bool) {
+	if indices := tableRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 4 {
 		raw := strings.TrimSpace(text[indices[2]:indices[3]])
-		data := parseTable(raw)
-		if data != nil {
-			node.Children = append(node.Children, NewNode("Table", data, nil))
-		} else {
-			node.Children = append(node.Children, createTextNode(text[indices[0]:indices[1]]))
+		if raw != "" {
+			data := parseTable(raw)
+			if data != nil {
+				node.Children = append(node.Children, NewNode("Table", data, nil))
+			} else {
+				node.Children = append(node.Children, createTextNode(text[indices[0]:indices[1]]))
+			}
+			return text[indices[1]:], true
 		}
-		return text[indices[1]:], true
 	}
 	return text, false
 }
 
-func processSampleBlock(node *Node, text string) (string, bool) {
-	if indices := sampleBlockRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 8 {
+func processSample(node *Node, text string) (string, bool) {
+	if indices := sampleRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 10 {
 		index, _ := strconv.Atoi(text[indices[2]:indices[3]])
-		node.Children = append(node.Children, NewNode("SampleBlock", map[string]interface{}{
+		hintRaw := strings.TrimSpace(text[indices[4]:indices[5]])
+		var hint interface{} = ""
+		if hintRaw != "" {
+			tmp := NewNode("tmp", hintRaw, nil)
+			processInline(tmp)
+			hint = tmp.Children
+		}
+		node.Children = append(node.Children, NewNode("Sample", map[string]interface{}{
 			"index":  index,
-			"input":  strings.TrimSpace(text[indices[4]:indices[5]]),
-			"output": strings.TrimSpace(text[indices[6]:indices[7]]),
+			"hint":   hint,
+			"input":  strings.TrimSpace(text[indices[6]:indices[7]]),
+			"output": strings.TrimSpace(text[indices[8]:indices[9]]),
 		}, nil))
 		return text[indices[1]:], true
 	}
 	return text, false
 }
 
-func processMixCodeBlock(node *Node, text string) (string, bool) {
-	if indices := mixCodeBlockRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 4 {
+func processMixCode(node *Node, text string) (string, bool) {
+	if indices := mixCodeRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 4 {
 		raw := strings.TrimSpace(text[indices[2]:indices[3]])
-		data := parseMixCode(raw)
-		if data != nil {
-			node.Children = append(node.Children, NewNode("MixCodeBlock", data, nil))
-		} else {
-			node.Children = append(node.Children, createTextNode(text[indices[0]:indices[1]]))
+		if raw != "" {
+			data := parseMixCode(raw)
+			if data != nil {
+				node.Children = append(node.Children, NewNode("MixCode", data, nil))
+			} else {
+				node.Children = append(node.Children, createTextNode(text[indices[0]:indices[1]]))
+			}
+			return text[indices[1]:], true
 		}
-		return text[indices[1]:], true
 	}
 	return text, false
 }
@@ -290,13 +319,13 @@ func Lex(text string) *Node {
 		if text, ok = processHtmlBlock(node, text); ok {
 			continue
 		}
-		if text, ok = processTableBlock(node, text); ok {
+		if text, ok = processTable(node, text); ok {
 			continue
 		}
-		if text, ok = processSampleBlock(node, text); ok {
+		if text, ok = processSample(node, text); ok {
 			continue
 		}
-		if text, ok = processMixCodeBlock(node, text); ok {
+		if text, ok = processMixCode(node, text); ok {
 			continue
 		}
 		text = processUnknown(text)
