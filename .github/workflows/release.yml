@@ -1,0 +1,30 @@
+name: Auto Release
+
+on:
+  push:
+    tags:
+      - 'v*' # 以 'v' 开头的 tag 会触发工作流程
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        id: create_release
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          echo "Creating release $TAG"
+          # 使用 GitHub API 创建 release
+          RESPONSE=$(curl --request POST \
+             --url https://api.github.com/repos/$GITHUB_REPOSITORY/releases \
+             --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+             --data '{
+               "tag_name": "'"$TAG"'",
+               "name": "'"$TAG"'",
+               "draft": false,
+               "prerelease": false
+           }')
+          echo "Release response: $RESPONSE"
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
