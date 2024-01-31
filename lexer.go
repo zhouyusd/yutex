@@ -239,11 +239,8 @@ func processTable(node *Node, text string) (string, bool) {
 	if indices := tableRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 4 {
 		raw := strings.TrimSpace(text[indices[2]:indices[3]])
 		if raw != "" {
-			data := parseTable(raw)
-			if data != nil {
+			if data := parseTable(raw); data != nil {
 				node.Children = append(node.Children, NewNode("Table", data, nil))
-			} else {
-				node.Children = append(node.Children, createTextNode(text[indices[0]:indices[1]]))
 			}
 			return text[indices[1]:], true
 		}
@@ -276,11 +273,8 @@ func processMixCode(node *Node, text string) (string, bool) {
 	if indices := mixCodeRegexp.FindStringSubmatchIndex(text); indices != nil && len(indices) >= 4 {
 		raw := strings.TrimSpace(text[indices[2]:indices[3]])
 		if raw != "" {
-			data := parseMixCode(raw)
-			if data != nil {
+			if data := parseMixCode(raw); data != nil {
 				node.Children = append(node.Children, NewNode("MixCode", data, nil))
-			} else {
-				node.Children = append(node.Children, createTextNode(text[indices[0]:indices[1]]))
 			}
 			return text[indices[1]:], true
 		}
